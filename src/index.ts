@@ -108,7 +108,15 @@ app.use(
     params.map((e) => console.log(`${moment().toISOString()} | ${e}`));
   })
 );
-app.use(cors());
+// app.use(cors());
+
+app.use('*', cors({
+  origin: 'http://localhost:3991',
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  headers: ['Content-Type', 'Authorization'],
+  credentials: true,
+}));
+
 
 app.onError(globalErrorMiddleware);
 app.notFound(notFoundMiddleware);
