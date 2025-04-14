@@ -102,11 +102,11 @@ export const createMessageController = () => {
           });
           responses.push({ number, status: "sent", response });
 
-          if (i < numbers.length - 1) {
-        const randomMinutes = Math.floor(Math.random() * 9) + 1; // Random integer between 1 and 10
-        const delayMs = randomMinutes * 60000; // Convert minutes to milliseconds
-        await delay(delayMs);
-      }
+      //     if (i < numbers.length - 1) {
+      //   const randomMinutes = Math.floor(Math.random() * 9) + 1; // Random integer between 1 and 10
+      //   const delayMs = randomMinutes * 60000; // Convert minutes to milliseconds
+      //   await delay(delayMs);
+      // }
         } catch (error) {
           responses.push({ number, status: "failed", error: "error" });
         }
