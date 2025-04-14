@@ -112,21 +112,18 @@ export const createMessageController = () => {
   //   }
   // );
 
-// Schema for sending bulk text messages with scheduling
-const sendBulkMessageSchema = z.object({
-  session: z.string(),
-  to: z.array(z.string()), // Accepts multiple numbers
-  text: z.string(),
-  executions: z.number().positive(), // Number of times to repeat
-  maxDelay: z.number().positive().optional(), // User-defined max delay (default: 10)
-});
+  
+  // Schema for sending documents in bulk
 
-// Helper function to generate random delay between 1 and maxDelay
-const getRandomDelay = (maxDelay: number) => {
-  return Math.floor(Math.random() * maxDelay) + 1; // Returns 1 to maxDelay seconds
-};
 
-// GET /send-bulk-text
+
+
+
+  // Add this helper function inside the route handler
+const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+
+// ... existing code ...
+
 app.get(
   "/send-bulk-text",
   createKeyMiddleware(),
@@ -141,79 +138,35 @@ app.get(
     }
 
     const numbers = Array.isArray(payload.to) ? payload.to : [payload.to];
-    const allResponses = []; // Collect responses from all executions
-    const maxDelay = payload.maxDelay || 10; // Default to 10 seconds if not provided
+    const responses = [];
 
-    // Execute message sending for specified number of times
-    for (let exec = 1; exec <= payload.executions; exec++) {
-      const executionResponses = []; // Responses for current execution
-      console.log(`Starting execution ${exec} of ${payload.executions}`);
-
-      for (const [index, number] of numbers.entries()) {
-        try {
-          // Construct the URL with parameters
-          const url = new URL(
-            "https://wa-gateway-production.up.railway.app/message/send-text"
-          );
-          url.searchParams.append("session", payload.session);
-          url.searchParams.append("to", number);
-          url.searchParams.append("text", payload.text);
-
-          // Send message using the constructed URL
-          const response = await fetch(url.toString(), {
-            method: "GET",
-          });
-
-          if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
-          }
-
-          const data = await response.json();
-          
-          executionResponses.push({
-            number,
-            status: "sent",
-            response: data,
-            execution: exec,
-            timestamp: new Date().toISOString(),
-          });
-
-          // Add random delay between messages (except after last message)
-          if (index < numbers.length - 1) {
-            const delay = getRandomDelay(maxDelay);
-            console.log(`Waiting ${delay} seconds before next message`);
-            await new Promise(resolve => setTimeout(resolve, delay * 1000));
-          }
-        } catch (error) {
-          executionResponses.push({
-            number,
-            status: "failed",
-            error: error.message || "Unknown error",
-            execution: exec,
-            timestamp: new Date().toISOString(),
-          });
-        }
+    // Use a for loop with index to track position
+    for (let i = 0; i < numbers.length; i++) {
+      const number = numbers[i];
+      try {
+        const response = await whatsapp.sendTextMessage({
+          sessionId: payload.session,
+          to: number,
+          text: payload.text,
+        });
+        responses.push({ number, status: "sent", response });
+      } catch (error) {
+        responses.push({ number, status: "failed", error: "error" });
       }
 
-      // Add current execution's responses to the main array
-      allResponses.push(...executionResponses);
+      // Add a random delay between 1 and 10 minutes (in milliseconds)
+      if (i < numbers.length - 1) {
+        const randomMinutes = Math.floor(Math.random() * 9) + 1; // Random integer between 1 and 10
+        const delayMs = randomMinutes * 60000; // Convert minutes to milliseconds
+        await delay(delayMs);
+      }
     }
 
     return c.json({
-      data: allResponses,
-      summary: {
-        totalExecutions: payload.executions,
-        totalMessages: allResponses.length,
-        successCount: allResponses.filter(r => r.status === "sent").length,
-        failureCount: allResponses.filter(r => r.status === "failed").length,
-        maxDelayUsed: maxDelay,
-      }
+      data: responses,
     });
   }
 );
-
-  
-  // Schema for sending documents in bulk
   const sendBulkDocumentSchema = z.object({
     session: z.string(),
     to: z.array(z.string()), // Accepts multiple numbers
