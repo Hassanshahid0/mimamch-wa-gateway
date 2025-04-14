@@ -69,49 +69,139 @@ export const createMessageController = () => {
     }
   );
 
-  // Schema for sending bulk text messages
-  const sendBulkMessageSchema = z.object({
-    session: z.string(),
-    to: z.array(z.string()), // Accepts multiple numbers
-    text: z.string(),
-  });
+  // // Schema for sending bulk text messages
+  // const sendBulkMessageSchema = z.object({
+  //   session: z.string(),
+  //   to: z.array(z.string()), // Accepts multiple numbers
+  //   text: z.string(),
+  // });
 
-  // GET /send-bulk-text
-  app.get(
-    "/send-bulk-text",
-    createKeyMiddleware(),
-    customValidator("query", sendBulkMessageSchema),
-    async (c) => {
-      const payload = c.req.valid("query");
-      const isExist = whatsapp.getSession(payload.session);
-      if (!isExist) {
-        throw new HTTPException(400, {
-          message: "Session does not exist",
-        });
-      }
+  // // GET /send-bulk-text
+  // app.get(
+  //   "/send-bulk-text",
+  //   createKeyMiddleware(),
+  //   customValidator("query", sendBulkMessageSchema),
+  //   async (c) => {
+  //     const payload = c.req.valid("query");
+  //     const isExist = whatsapp.getSession(payload.session);
+  //     if (!isExist) {
+  //       throw new HTTPException(400, {
+  //         message: "Session does not exist",
+  //       });
+  //     }
 
-      const numbers = Array.isArray(payload.to) ? payload.to : [payload.to];
-      const responses = [];
+  //     const numbers = Array.isArray(payload.to) ? payload.to : [payload.to];
+  //     const responses = [];
 
-      for (const number of numbers) {
+  //     for (const number of numbers) {
+  //       try {
+  //         const response = await whatsapp.sendTextMessage({
+  //           sessionId: payload.session,
+  //           to: number,
+  //           text: payload.text,
+  //         });
+  //         responses.push({ number, status: "sent", response });
+  //       } catch (error) {
+  //         responses.push({ number, status: "failed", error: "error" });
+  //       }
+  //     }
+
+  //     return c.json({
+  //       data: responses,
+  //     });
+  //   }
+  // );
+
+  // Schema for sending bulk text messages with scheduling
+const sendBulkMessageSchema = z.object({
+  session: z.string(),
+  to: z.array(z.string()), // Accepts multiple numbers
+  text: z.string(),
+  executions: z.number().positive(), // Number of times to repeat
+  maxDelay: z.number().positive().optional(), // User-defined max delay (default: 10)
+});
+
+// Helper function to generate random delay between 1 and maxDelay
+const getRandomDelay = (maxDelay: number) => {
+  return Math.floor(Math.random() * maxDelay) + 1; // Returns 1 to maxDelay seconds
+};
+
+// GET /send-bulk-text
+app.get(
+  "/send-bulk-text",
+  createKeyMiddleware(),
+  customValidator("query", sendBulkMessageSchema),
+  async (c) => {
+    const payload = c.req.valid("query");
+    const isExist = whatsapp.getSession(payload.session);
+    if (!isExist) {
+      throw new HTTPException(400, {
+        message: "Session does not exist",
+      });
+    }
+
+    const numbers = Array.isArray(payload.to) ? payload.to : [payload.to];
+    const allResponses = []; // Collect responses from all executions
+    const maxDelay = payload.maxDelay || 10; // Default to 10 seconds if not provided
+
+    // Execute message sending for specified number of times
+    for (let exec = 1; exec <= payload.executions; exec++) {
+      const executionResponses = []; // Responses for current execution
+      console.log(`Starting execution ${exec} of ${payload.executions}`);
+
+      for (const [index, number] of numbers.entries()) {
         try {
+          // Send message
           const response = await whatsapp.sendTextMessage({
             sessionId: payload.session,
             to: number,
             text: payload.text,
           });
-          responses.push({ number, status: "sent", response });
+          
+          executionResponses.push({
+            number,
+            status: "sent",
+            response,
+            execution: exec,
+            timestamp: new Date().toISOString(),
+          });
+
+          // Add random delay between messages (except after last message)
+          if (index < numbers.length - 1) {
+            const delay = getRandomDelay(maxDelay);
+            console.log(`Waiting ${delay} seconds before next message`);
+            await new Promise(resolve => setTimeout(resolve, delay * 1000));
+          }
         } catch (error) {
-          responses.push({ number, status: "failed", error: "error" });
+          executionResponses.push({
+            number,
+            status: "failed",
+            error: error.message || "Unknown error",
+            execution: exec,
+            timestamp: new Date().toISOString(),
+          });
         }
       }
 
-      return c.json({
-        data: responses,
-      });
+      // Add current execution's responses to the main array
+      allResponses.push(...executionResponses);
     }
-  );
 
+    return c.json({
+      data: allResponses,
+      summary: {
+        totalExecutions: payload.executions,
+        totalMessages: allResponses.length,
+        successCount: allResponses.filter(r => r.status === "sent").length,
+        failureCount: allResponses.filter(r => r.status === "failed").length,
+        maxDelayUsed: maxDelay,
+      }
+    });
+  }
+);
+
+
+  
   // Schema for sending documents in bulk
   const sendBulkDocumentSchema = z.object({
     session: z.string(),
