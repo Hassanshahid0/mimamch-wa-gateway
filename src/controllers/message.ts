@@ -118,6 +118,16 @@ export const createMessageController = () => {
     }
   );
 
+
+// Schema for sending documents in bulk
+  const sendBulkDocumentSchema = z.object({
+    session: z.string(),
+    to: z.array(z.string()), // Accepts multiple numbers
+    file_url: z.string(),    // URL of the file
+    file_name: z.string(),   // Name of the file
+    caption: z.string().optional(), // Optional caption for the file
+  });
+  
   
   // POST /send-document-Bulk
   app.post(
