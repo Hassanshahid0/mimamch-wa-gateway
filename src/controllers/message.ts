@@ -112,7 +112,7 @@ export const createMessageController = () => {
   //   }
   // );
 
-  // Schema for sending bulk text messages with scheduling
+// Schema for sending bulk text messages with scheduling
 const sendBulkMessageSchema = z.object({
   session: z.string(),
   to: z.array(z.string()), // Accepts multiple numbers
@@ -151,17 +151,29 @@ app.get(
 
       for (const [index, number] of numbers.entries()) {
         try {
-          // Send message
-          const response = await whatsapp.sendTextMessage({
-            sessionId: payload.session,
-            to: number,
-            text: payload.text,
+          // Construct the URL with parameters
+          const url = new URL(
+            "https://wa-gateway-production.up.railway.app/message/send-text"
+          );
+          url.searchParams.append("session", payload.session);
+          url.searchParams.append("to", number);
+          url.searchParams.append("text", payload.text);
+
+          // Send message using the constructed URL
+          const response = await fetch(url.toString(), {
+            method: "GET",
           });
+
+          if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+          }
+
+          const data = await response.json();
           
           executionResponses.push({
             number,
             status: "sent",
-            response,
+            response: data,
             execution: exec,
             timestamp: new Date().toISOString(),
           });
@@ -199,7 +211,6 @@ app.get(
     });
   }
 );
-
 
   
   // Schema for sending documents in bulk
