@@ -119,14 +119,6 @@ export const createMessageController = () => {
   );
 
   
-  Schema for sending documents in bulk
-
-
-
-
-
-  // Add this helper function inside the route handler
-
   // POST /send-document-Bulk
   app.post(
     "/send-document-Bulk",
