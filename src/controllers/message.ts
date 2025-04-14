@@ -69,111 +69,63 @@ export const createMessageController = () => {
     }
   );
 
-  // // Schema for sending bulk text messages
-  // const sendBulkMessageSchema = z.object({
-  //   session: z.string(),
-  //   to: z.array(z.string()), // Accepts multiple numbers
-  //   text: z.string(),
-  // });
+  // Schema for sending bulk text messages
+  const sendBulkMessageSchema = z.object({
+    session: z.string(),
+    to: z.array(z.string()), // Accepts multiple numbers
+    text: z.string(),
+  });
 
-  // // GET /send-bulk-text
-  // app.get(
-  //   "/send-bulk-text",
-  //   createKeyMiddleware(),
-  //   customValidator("query", sendBulkMessageSchema),
-  //   async (c) => {
-  //     const payload = c.req.valid("query");
-  //     const isExist = whatsapp.getSession(payload.session);
-  //     if (!isExist) {
-  //       throw new HTTPException(400, {
-  //         message: "Session does not exist",
-  //       });
-  //     }
+  // GET /send-bulk-text
+  app.get(
+    "/send-bulk-text",
+    createKeyMiddleware(),
+    customValidator("query", sendBulkMessageSchema),
+    async (c) => {
+      const payload = c.req.valid("query");
+      const isExist = whatsapp.getSession(payload.session);
+      if (!isExist) {
+        throw new HTTPException(400, {
+          message: "Session does not exist",
+        });
+      }
 
-  //     const numbers = Array.isArray(payload.to) ? payload.to : [payload.to];
-  //     const responses = [];
+      const numbers = Array.isArray(payload.to) ? payload.to : [payload.to];
+      const responses = [];
 
-  //     for (const number of numbers) {
-  //       try {
-  //         const response = await whatsapp.sendTextMessage({
-  //           sessionId: payload.session,
-  //           to: number,
-  //           text: payload.text,
-  //         });
-  //         responses.push({ number, status: "sent", response });
-  //       } catch (error) {
-  //         responses.push({ number, status: "failed", error: "error" });
-  //       }
-  //     }
+      for (const number of numbers) {
+        try {
+          const response = await whatsapp.sendTextMessage({
+            sessionId: payload.session,
+            to: number,
+            text: payload.text,
+          });
+          responses.push({ number, status: "sent", response });
 
-  //     return c.json({
-  //       data: responses,
-  //     });
-  //   }
-  // );
+          if (i < numbers.length - 1) {
+        const randomMinutes = Math.floor(Math.random() * 9) + 1; // Random integer between 1 and 10
+        const delayMs = randomMinutes * 60000; // Convert minutes to milliseconds
+        await delay(delayMs);
+      }
+        } catch (error) {
+          responses.push({ number, status: "failed", error: "error" });
+        }
+      }
+
+      return c.json({
+        data: responses,
+      });
+    }
+  );
 
   
-  // Schema for sending documents in bulk
+  Schema for sending documents in bulk
 
 
 
 
 
   // Add this helper function inside the route handler
-const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
-
-// ... existing code ...
-
-app.get(
-  "/send-bulk-text",
-  createKeyMiddleware(),
-  customValidator("query", sendBulkMessageSchema),
-  async (c) => {
-    const payload = c.req.valid("query");
-    const isExist = whatsapp.getSession(payload.session);
-    if (!isExist) {
-      throw new HTTPException(400, {
-        message: "Session does not exist",
-      });
-    }
-
-    const numbers = Array.isArray(payload.to) ? payload.to : [payload.to];
-    const responses = [];
-
-    // Use a for loop with index to track position
-    for (let i = 0; i < numbers.length; i++) {
-      const number = numbers[i];
-      try {
-        const response = await whatsapp.sendTextMessage({
-          sessionId: payload.session,
-          to: number,
-          text: payload.text,
-        });
-        responses.push({ number, status: "sent", response });
-      } catch (error) {
-        responses.push({ number, status: "failed", error: "error" });
-      }
-
-      // Add a random delay between 1 and 10 minutes (in milliseconds)
-      if (i < numbers.length - 1) {
-        const randomMinutes = Math.floor(Math.random() * 9) + 1; // Random integer between 1 and 10
-        const delayMs = randomMinutes * 60000; // Convert minutes to milliseconds
-        await delay(delayMs);
-      }
-    }
-
-    return c.json({
-      data: responses,
-    });
-  }
-);
-  const sendBulkDocumentSchema = z.object({
-    session: z.string(),
-    to: z.array(z.string()), // Accepts multiple numbers
-    file_url: z.string(),    // URL of the file
-    file_name: z.string(),   // Name of the file
-    caption: z.string().optional(), // Optional caption for the file
-  });
 
   // POST /send-document-Bulk
   app.post(
